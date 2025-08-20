@@ -1112,6 +1112,73 @@
     .comparison-content.active {
       display: block;
     }
+
+    /* Week selector grid */
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .week-btn {
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .week-btn:hover {
+      border-color: var(--primary-color);
+      background: var(--primary-light);
+    }
+
+    .week-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    /* Data view environment */
+    .data-view-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-body);
+      z-index: 2000;
+      padding: 20px;
+      overflow: auto;
+      display: none;
+    }
+
+    .data-view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .data-view-title {
+      font-size: var(--font-size-2xl);
+      color: var(--primary-color);
+      font-weight: 700;
+    }
+
+    .data-view-content {
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-md);
+      padding: 24px;
+      border: 1px solid var(--border-light);
+    }
   </style>
 </head>
 <body>
@@ -1139,11 +1206,27 @@
     </div>
 
     <div class="tooltip">
+      <button class="btn btn-sidebar" onclick="abrirModal('semanasModal')">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Semanas</span>
+      </button>
+      <span class="tooltip-text">Selecionar e gerenciar semanas</span>
+    </div>
+
+    <div class="tooltip">
       <button class="btn btn-sidebar" onclick="abrirModal('dataModal')">
         <i class="fas fa-upload"></i>
         <span>Importar Dados</span>
       </button>
       <span class="tooltip-text">Importar dados da planilha para análise</span>
+    </div>
+
+    <div class="tooltip">
+      <button class="btn btn-sidebar" onclick="abrirModalDadosPlantio()">
+        <i class="fas fa-table"></i>
+        <span>Dados do Plantio</span>
+      </button>
+      <span class="tooltip-text">Visualizar dados completos do plantio</span>
     </div>
 
     <div class="tooltip">
@@ -1201,7 +1284,7 @@
     <div class="header">
       <div class="header-title">
         <i class="fas fa-seedling"></i>
-        <h1>Acompanhamento de Plantio</h1>
+        <h1>Acompanhamento de Plantio <span id="weekIndicator" style="font-size: 18px; color: var(--accent-color);"></span></h1>
       </div>
       <div class="header-actions">
         <button class="btn btn-outline" onclick="toggleEditMode()">
@@ -1402,7 +1485,74 @@
     </div>
   </div>
 
+  <!-- Data View Environment -->
+  <div id="dataView" class="data-view-container">
+    <div class="data-view-header">
+      <h2 class="data-view-title">
+        <i class="fas fa-table"></i>
+        Dados Completos do Plantio
+      </h2>
+      <button class="btn btn-outline" onclick="fecharVisualizacaoDados()">
+        <i class="fas fa-times"></i>
+        Fechar
+      </button>
+    </div>
+    <div class="data-view-content">
+      <div id="dataViewContent">
+        <!-- Data view content will be populated here -->
+      </div>
+    </div>
+  </div>
+
   <!-- Enhanced Modals -->
+  
+  <!-- Weeks Modal -->
+  <div id="semanasModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fas fa-calendar-alt"></i>
+          Gerenciamento de Semanas
+        </h3>
+        <button class="close-btn" onclick="fecharModal('semanasModal')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Selecione a semana atual:</label>
+          <select class="form-control" id="weekSelector" onchange="selecionarSemana(this.value)">
+            <option value="">Selecione uma semana</option>
+            <!-- Weeks will be populated here -->
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Criar nova semana:</label>
+          <div style="display: flex; gap: 12px;">
+            <input type="number" class="form-control" id="novaSemana" min="1" max="52" placeholder="Número da semana (1-52)">
+            <button class="btn" onclick="criarNovaSemana()">
+              <i class="fas fa-plus"></i>
+              Criar
+            </button>
+          </div>
+        </div>
+        
+        <hr style="margin: 20px 0; border: 1px solid var(--border-light);">
+        
+        <h4 style="margin-bottom: 16px;">Todas as semanas:</h4>
+        <div class="week-grid" id="weekGrid">
+          <!-- Week buttons will be populated here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="fecharModal('semanasModal')">
+          <i class="fas fa-times"></i>
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
   
   <!-- Data Import Modal -->
   <div id="dataModal" class="modal">
@@ -1604,6 +1754,10 @@
       totalTarget: null,
       totalProgress: null
     };
+    
+    // New variables for week management
+    let semanasData = {};
+    let semanaAtual = null;
 
     // ===================================
     // THEME MANAGEMENT
@@ -1686,6 +1840,230 @@
           fecharModal(modal.id);
         }
       });
+    }
+
+    // ===================================
+    // WEEK MANAGEMENT FUNCTIONS
+    // ===================================
+    function carregarSemanas() {
+      try {
+        const semanasSalvas = localStorage.getItem('semanasData');
+        if (semanasSalvas) {
+          semanasData = JSON.parse(semanasSalvas);
+        }
+        
+        const semanaSelecionada = localStorage.getItem('semanaAtual');
+        if (semanaSelecionada) {
+          semanaAtual = semanaSelecionada;
+          document.getElementById('weekIndicator').textContent = `- Semana ${semanaAtual}`;
+        }
+        
+        atualizarSeletorSemanas();
+      } catch (error) {
+        console.error('Erro ao carregar semanas:', error);
+        mostrarNotificacao('Erro ao carregar dados das semanas', 'error');
+      }
+    }
+    
+    function atualizarSeletorSemanas() {
+      const weekSelector = document.getElementById('weekSelector');
+      const weekGrid = document.getElementById('weekGrid');
+      
+      // Clear existing options
+      weekSelector.innerHTML = '<option value="">Selecione uma semana</option>';
+      weekGrid.innerHTML = '';
+      
+      // Get all week numbers and sort them
+      const semanas = Object.keys(semanasData).map(Number).sort((a, b) => a - b);
+      
+      // Add options to selector
+      semanas.forEach(semana => {
+        const option = document.createElement('option');
+        option.value = semana;
+        option.textContent = `Semana ${semana}`;
+        if (semanaAtual && semana == semanaAtual) {
+          option.selected = true;
+        }
+        weekSelector.appendChild(option);
+      });
+      
+      // Add buttons to grid
+      for (let i = 1; i <= 52; i++) {
+        const button = document.createElement('button');
+        button.className = `week-btn ${semanasData[i] ? 'has-data' : ''} ${semanaAtual && i == semanaAtual ? 'active' : ''}`;
+        button.textContent = i;
+        button.onclick = () => selecionarSemana(i);
+        weekGrid.appendChild(button);
+      }
+    }
+    
+    function selecionarSemana(numeroSemana) {
+      if (!numeroSemana) return;
+      
+      semanaAtual = numeroSemana;
+      localStorage.setItem('semanaAtual', semanaAtual);
+      document.getElementById('weekIndicator').textContent = `- Semana ${semanaAtual}`;
+      
+      // Load data for selected week
+      if (semanasData[semanaAtual]) {
+        const semanaDados = semanasData[semanaAtual];
+        dadosSemanaAtual = semanaDados.dadosSemanaAtual || [];
+        dadosSemanaDistribuicao = semanaDados.dadosSemanaDistribuicao || [];
+        dadosAnoAnterior = semanaDados.dadosAnoAnterior || [];
+        metasDefinidas = semanaDados.metasDefinidas || {};
+        recordesDistribuidores = semanaDados.recordesDistribuidores || {};
+        historicoDistribuidores = semanaDados.historicoDistribuidores || {};
+        manualStats = semanaDados.manualStats || {
+          totalTarget: null,
+          totalProgress: null
+        };
+      } else {
+        // Initialize empty data for new week
+        dadosSemanaAtual = [];
+        dadosSemanaDistribuicao = [];
+        dadosAnoAnterior = [];
+        metasDefinidas = {};
+        recordesDistribuidores = {};
+        historicoDistribuidores = {};
+        manualStats = {
+          totalTarget: null,
+          totalProgress: null
+        };
+      }
+      
+      dadosFiltrados = [...dadosSemanaAtual];
+      atualizarInterface();
+      atualizarComparativos();
+      
+      if (dadosFiltrados.length > 0) {
+        updateChart();
+      }
+      
+      atualizarSeletorSemanas();
+      fecharModal('semanasModal');
+      
+      mostrarNotificacao(`Semana ${semanaAtual} selecionada`, 'success');
+    }
+    
+    function criarNovaSemana() {
+      const novaSemanaInput = document.getElementById('novaSemana');
+      const numeroSemana = parseInt(novaSemanaInput.value);
+      
+      if (isNaN(numeroSemana) || numeroSemana < 1 || numeroSemana > 52) {
+        mostrarNotificacao('Por favor, insira um número de semana válido (1-52)', 'warning');
+        return;
+      }
+      
+      if (semanasData[numeroSemana]) {
+        mostrarNotificacao(`A semana ${numeroSemana} já existe`, 'info');
+        selecionarSemana(numeroSemana);
+        return;
+      }
+      
+      // Create empty week data
+      semanasData[numeroSemana] = {
+        dadosSemanaAtual: [],
+        dadosSemanaDistribuicao: [],
+        dadosAnoAnterior: [],
+        metasDefinidas: {},
+        recordesDistribuidores: {},
+        historicoDistribuidores: {},
+        manualStats: {
+          totalTarget: null,
+          totalProgress: null
+        }
+      };
+      
+      salvarSemanas();
+      selecionarSemana(numeroSemana);
+      novaSemanaInput.value = '';
+      
+      mostrarNotificacao(`Semana ${numeroSemana} criada com sucesso`, 'success');
+    }
+    
+    function salvarSemanas() {
+      try {
+        if (semanaAtual) {
+          // Save current data to the selected week
+          semanasData[semanaAtual] = {
+            dadosSemanaAtual,
+            dadosSemanaDistribuicao,
+            dadosAnoAnterior,
+            metasDefinidas,
+            recordesDistribuidores,
+            historicoDistribuidores,
+            manualStats
+          };
+        }
+        
+        localStorage.setItem('semanasData', JSON.stringify(semanasData));
+      } catch (error) {
+        console.error('Erro ao salvar semanas:', error);
+        mostrarNotificacao('Erro ao salvar dados das semanas', 'error');
+      }
+    }
+
+    // ===================================
+    // DATA VIEW FUNCTIONS
+    // ===================================
+    function abrirModalDadosPlantio() {
+      if (dadosSemanaAtual.length === 0) {
+        mostrarNotificacao('Não há dados para visualizar', 'warning');
+        return;
+      }
+      
+      const container = document.getElementById('dataViewContent');
+      container.innerHTML = '';
+      
+      // Create enhanced table for data view
+      const table = document.createElement('table');
+      table.className = 'data-table';
+      table.style.fontSize = '14px';
+      
+      // Table header
+      const thead = document.createElement('thead');
+      thead.innerHTML = `
+        <tr>
+          <th>Distribuidor</th>
+          <th>Objetivo</th>
+          <th>Notas Novas</th>
+          <th>Acertadas</th>
+          <th>Total Cobrança</th>
+          <th>% Cumprimento</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+      
+      // Table body
+      const tbody = document.createElement('tbody');
+      
+      dadosSemanaAtual.forEach(item => {
+        const percentual = (item.percentualCumprimento || 0).toFixed(1);
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+          <td><strong>${item.distribuidor}</strong></td>
+          <td>${item.meta || 0}</td>
+          <td>${item.notasNovas || 0}</td>
+          <td>${item.acertadas || 0}</td>
+          <td class="text-success"><strong>${formatarMoeda(item.totalCobranca || 0)}</strong></td>
+          <td><strong class="text-${getPerformanceClass(percentual)}">${percentual}%</strong></td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+      
+      table.appendChild(tbody);
+      container.appendChild(table);
+      
+      // Show data view
+      document.getElementById('dataView').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function fecharVisualizacaoDados() {
+      document.getElementById('dataView').style.display = 'none';
+      document.body.style.overflow = 'auto';
     }
 
     // ===================================
@@ -1835,12 +2213,20 @@
     // ===================================
     function salvarDadosLocais() {
       try {
-        localStorage.setItem('dadosSemanaAtual', JSON.stringify(dadosSemanaAtual));
-        localStorage.setItem('dadosSemanaDistribuicao', JSON.stringify(dadosSemanaDistribuicao));
-        localStorage.setItem('dadosAnoAnterior', JSON.stringify(dadosAnoAnterior));
-        localStorage.setItem('metasDefinidas', JSON.stringify(metasDefinidas));
-        localStorage.setItem('recordesDistribuidores', JSON.stringify(recordesDistribuidores));
-        localStorage.setItem('manualStats', JSON.stringify(manualStats));
+        // Save to current week
+        if (semanaAtual) {
+          semanasData[semanaAtual] = {
+            dadosSemanaAtual,
+            dadosSemanaDistribuicao,
+            dadosAnoAnterior,
+            metasDefinidas,
+            recordesDistribuidores,
+            historicoDistribuidores,
+            manualStats
+          };
+          localStorage.setItem('semanasData', JSON.stringify(semanasData));
+        }
+        
         localStorage.setItem('ultimaAtualizacao', new Date().toISOString());
       } catch (error) {
         console.error('Erro ao salvar dados:', error);
@@ -1850,7 +2236,7 @@
 
     function salvarHistoricoLocais() {
       try {
-        localStorage.setItem('historicoDistribuidores', JSON.stringify(historicoDistribuidores));
+        // No need to save separately as it's included in semanasData
       } catch (error) {
         console.error('Erro ao salvar histórico:', error);
       }
@@ -1858,21 +2244,23 @@
 
     function carregarDadosLocais() {
       try {
-        const dadosAtual = localStorage.getItem('dadosSemanaAtual');
-        const dadosDistribuicao = localStorage.getItem('dadosSemanaDistribuicao');
-        const dadosAnterior = localStorage.getItem('dadosAnoAnterior');
-        const metas = localStorage.getItem('metasDefinidas');
-        const recordes = localStorage.getItem('recordesDistribuidores');
-        const historico = localStorage.getItem('historicoDistribuidores');
-        const savedManualStats = localStorage.getItem('manualStats');
+        // Load weeks data
+        carregarSemanas();
         
-        if (dadosAtual) dadosSemanaAtual = JSON.parse(dadosAtual);
-        if (dadosDistribuicao) dadosSemanaDistribuicao = JSON.parse(dadosDistribuicao);
-        if (dadosAnterior) dadosAnoAnterior = JSON.parse(dadosAnterior);
-        if (metas) metasDefinidas = JSON.parse(metas);
-        if (recordes) recordesDistribuidores = JSON.parse(recordes);
-        if (historico) historicoDistribuidores = JSON.parse(historico);
-        if (savedManualStats) manualStats = JSON.parse(savedManualStats);
+        // If there's a selected week, load its data
+        if (semanaAtual && semanasData[semanaAtual]) {
+          const semanaDados = semanasData[semanaAtual];
+          dadosSemanaAtual = semanaDados.dadosSemanaAtual || [];
+          dadosSemanaDistribuicao = semanaDados.dadosSemanaDistribuicao || [];
+          dadosAnoAnterior = semanaDados.dadosAnoAnterior || [];
+          metasDefinidas = semanaDados.metasDefinidas || {};
+          recordesDistribuidores = semanaDados.recordesDistribuidores || {};
+          historicoDistribuidores = semanaDados.historicoDistribuidores || {};
+          manualStats = semanaDados.manualStats || {
+            totalTarget: null,
+            totalProgress: null
+          };
+        }
         
         dadosFiltrados = [...dadosSemanaAtual];
         atualizarUltimaModificacao();
@@ -2090,7 +2478,7 @@
       
       // Update distribution comparison elements
       document.getElementById('comparisonNotas').textContent = diffNotas >= 0 ? `+${diffNotas}` : diffNotas;
-      document.getElementById('comparisonFinanceiro').textContent = formatarDiferencaMoeda(diffCobranca);
+      document.getElementById('comparisonFinanceiro').textContent = formatarDiferencaMoeta(diffCobranca);
       document.getElementById('comparisonPerformance').textContent = `${variacaoNotas >= 0 ? '+' : ''}${variacaoNotas}%`;
       
       document.getElementById('comparisonNotasDiff').innerHTML = `
@@ -2596,7 +2984,7 @@
             <div style="background: var(--bg-card); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--shadow-sm);">
               <div style="font-size: var(--font-size-lg); color: var(--text-light); margin-bottom: 10px;">Total Cobrança</div>
               <div style="font-size: var(--font-size-2xl); font-weight: bold; margin-bottom: 5px;">${formatarMoeda(totalAtualCobranca)} <span style="font-size: var(--font-size-lg); color: var(--text-light);">(Atual)</span></div>
-              <div style="font-size: var(--font-size-xl); color: var(--text-light); margin-bottom: 10px;">${formatarMoeda(totalDistCobranca)} <span style="font-size: var(--font-size-sm);">(Distribuição)</span></div>
+              <div style="font-size: var(--font-size-xl); color: var(--text-light; margin-bottom: 10px;">${formatarMoeda(totalDistCobranca)} <span style="font-size: var(--font-size-sm);">(Distribuição)</span></div>
               <div style="font-size: var(--font-size-lg); color: ${diffCobranca >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">
                 <i class="fas fa-arrow-${diffCobranca >= 0 ? 'up' : 'down'}"></i>
                 ${formatarDiferencaMoeda(diffCobranca)}
@@ -2675,7 +3063,7 @@
               <div style="font-size: var(--font-size-lg); color: var(--text-light); margin-bottom: 10px;">Notas Novas</div>
               <div style="font-size: var(--font-size-2xl); font-weight: bold; margin-bottom: 5px;">${totalAtualNotas} <span style="font-size: var(--font-size-lg); color: var(--text-light);">(Atual)</span></div>
               <div style="font-size: var(--font-size-xl); color: var(--text-light); margin-bottom: 10px;">${totalAnoAnteriorNotas} <span style="font-size: var(--font-size-sm);">(Ano Anterior)</span></div>
-              <div style="font-size: var(--font-size-lg); color: ${diffNotasAnoAnterior >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">
+              <div style="font-size: var(--font-size-lg; color: ${diffNotasAnoAnterior >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">
                 <i class="fas fa-arrow-${diffNotasAnoAnterior >= 0 ? 'up' : 'down'}"></i>
                 ${diffNotasAnoAnterior >= 0 ? '+' : ''}${diffNotasAnoAnterior} (${variacaoNotasAnoAnterior >= 0 ? '+' : ''}${variacaoNotasAnoAnterior}%)
               </div>
@@ -3388,6 +3776,8 @@
             totalTarget: null,
             totalProgress: null
           };
+          semanasData = {};
+          semanaAtual = null;
           
           // Destroy chart
           if (performanceChart) {
@@ -3398,6 +3788,7 @@
           atualizarInterface();
           document.getElementById('lastUpdate').textContent = 'Aguardando dados...';
           document.getElementById('comparisonContainer').style.display = 'none';
+          document.getElementById('weekIndicator').textContent = '';
           
           mostrarNotificacao('Todos os dados foram limpos com sucesso!', 'success');
           
@@ -3484,6 +3875,11 @@
             fecharModal(modal.id);
           }
         });
+        
+        // Also close data view if open
+        if (document.getElementById('dataView').style.display === 'block') {
+          fecharVisualizacaoDados();
+        }
       }
     });
 
@@ -3493,6 +3889,8 @@
     =========================================
     ✨ Funcionalidades disponíveis:
     • 📊 Dashboard interativo com gráficos
+    • 📅 Sistema de gerenciamento por semanas (1-52)
+    • 👁️ Visualização completa dos dados do plantio
     • 📈 Análise comparativa avançada (vs Distribuição e vs Ano Anterior)
     • 🎯 Gestão de metas individuais
     • 🏆 Sistema de recordes pessoais
@@ -3505,79 +3903,5 @@
     `);
 
   </script>
-
-<!-- Firebase Integration -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-analytics.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
-
-  // Configuração do Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyDTDxKe6BKVkMnWZNiOiKQ-GshHWQlWvQ",
-    authDomain: "plantioonline.firebaseapp.com",
-    databaseURL: "https://plantioonline-default-rtdb.firebasedatabase.com",
-    projectId: "plantioonline",
-    storageBucket: "plantioonline.firebasestorage.app",
-    messagingSenderId: "402298066853",
-    appId: "1:402298066853:web:844bb88c34cae8b81c3a4c",
-    measurementId: "G-Y8RZ81TDR5"
-  };
-
-  // Inicializar Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getDatabase(app);
-
-  // Salvar no Firebase
-  function salvarNoFirebase() {
-    try {
-      set(ref(db, 'plantio'), {
-        dadosSemanaAtual,
-        dadosSemanaDistribuicao,
-        dadosAnoAnterior
-      });
-    } catch (error) {
-      console.error('Erro ao salvar no Firebase:', error);
-    }
-  }
-
-  // Ouvir dados do Firebase
-  function ouvirDadosRealtime() {
-    const plantioRef = ref(db, 'plantio');
-    onValue(plantioRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        dadosSemanaAtual = data.dadosSemanaAtual || [];
-        dadosSemanaDistribuicao = data.dadosSemanaDistribuicao || [];
-        dadosAnoAnterior = data.dadosAnoAnterior || [];
-        dadosFiltrados = [...dadosSemanaAtual];
-        salvarDadosLocais();
-        atualizarInterface();
-        atualizarComparativos();
-        updateChart();
-      }
-    }, (error) => {
-      console.error('Erro ao ouvir Firebase:', error);
-    });
-  }
-
-  // Executar ao carregar
-  window.addEventListener('DOMContentLoaded', () => {
-    try {
-      ouvirDadosRealtime();
-    } catch (e) {
-      console.error("Erro ao iniciar listener Firebase:", e);
-    }
-  });
-
-  // Substituir processarDados para salvar no Firebase também
-  const oldProcessarDados = processarDados;
-  processarDados = function() {
-    oldProcessarDados();
-    salvarNoFirebase();
-  }
-</script>
-
 </body>
 </html>
